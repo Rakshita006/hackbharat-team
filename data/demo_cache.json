@@ -1,0 +1,101 @@
+{
+    "25.20_80.83": {
+        "ndwi": 0.08,
+        "ndvi": 0.45,
+        "ndmi": -0.05,
+        "cloud_cover": 12.3,
+        "image_date": "2026-06-07",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "25.48_80.34": {
+        "ndwi": 0.14,
+        "ndvi": 0.52,
+        "ndmi": 0.05,
+        "cloud_cover": 8.1,
+        "image_date": "2026-06-07",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "25.45_78.57": {
+        "ndwi": 0.03,
+        "ndvi": 0.38,
+        "ndmi": -0.12,
+        "cloud_cover": 15.2,
+        "image_date": "2026-06-06",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "28.79_79.02": {
+        "ndwi": 0.22,
+        "ndvi": 0.61,
+        "ndmi": 0.15,
+        "cloud_cover": 5.4,
+        "image_date": "2026-06-08",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "20.39_78.13": {
+        "ndwi": -0.08,
+        "ndvi": 0.28,
+        "ndmi": -0.22,
+        "cloud_cover": 18.7,
+        "image_date": "2026-06-05",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "20.94_77.78": {
+        "ndwi": 0.11,
+        "ndvi": 0.48,
+        "ndmi": 0.02,
+        "cloud_cover": 10.0,
+        "image_date": "2026-06-07",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "23.34_85.31": {
+        "ndwi": 0.18,
+        "ndvi": 0.55,
+        "ndmi": 0.08,
+        "cloud_cover": 7.3,
+        "image_date": "2026-06-08",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "24.27_87.25": {
+        "ndwi": 0.06,
+        "ndvi": 0.42,
+        "ndmi": -0.03,
+        "cloud_cover": 14.5,
+        "image_date": "2026-06-06",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "21.10_81.03": {
+        "ndwi": -0.02,
+        "ndvi": 0.35,
+        "ndmi": -0.08,
+        "cloud_cover": 11.2,
+        "image_date": "2026-06-07",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "25.96_80.15": {
+        "ndwi": 0.10,
+        "ndvi": 0.50,
+        "ndmi": 0.01,
+        "cloud_cover": 9.8,
+        "image_date": "2026-06-07",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    },
+    "25.29_79.87": {
+        "ndwi": 0.05,
+        "ndvi": 0.40,
+        "ndmi": -0.06,
+        "cloud_cover": 13.1,
+        "image_date": "2026-06-06",
+        "is_reliable": true,
+        "source": "demo_precomputed"
+    }
+}

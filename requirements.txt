@@ -1,0 +1,39 @@
+# JalSense 2.0 — Python Dependencies
+# Install: pip install -r requirements.txt
+# System dependency: ffmpeg (install separately)
+
+# Web framework
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+
+# Google Earth Engine
+earthengine-api==1.5.*
+
+# HTTP client (async)
+httpx==0.28.*
+
+# Geocoding
+geopy==2.4.*
+
+# Text-to-Speech (Hindi)
+edge-tts==6.1.*
+
+# Audio conversion (MP3 → OGG)
+pydub==0.25.*
+
+# Database
+sqlalchemy==2.0.*
+aiosqlite==0.21.*
+
+# Configuration
+python-dotenv==1.1.*
+pydantic==2.11.*
+pydantic-settings==2.9.*
+
+# Testing
+pytest==8.3.*
+pytest-asyncio==0.25.*
+
+# Rate Limiting
+slowapi>=0.1.9
+

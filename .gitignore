@@ -1,0 +1,30 @@
+# Secrets
+.env
+gee-key.json
+*.json.key
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Audio files
+*.ogg
+*.mp3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
