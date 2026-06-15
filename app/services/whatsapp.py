@@ -1,208 +1,155 @@
 from __future__ import annotations
 
 """
-JalSense 2.0 — WhatsApp Cloud API Integration
+JalSense 2.0 — WhatsApp Twilio Integration
 
-Handles sending messages (text + voice notes) to farmers via Meta's
-WhatsApp Cloud API. Also extracts incoming message data from webhook payloads.
+Handles sending messages (text + voice notes) to farmers via Twilio's
+WhatsApp Sandbox API. Also extracts incoming message data from webhook payloads.
 
 Two-step voice note sending:
-1. Upload audio file to Meta's media server → get media_id
-2. Send audio message referencing media_id
+1. Upload audio file to a public URL (via file hosting)
+2. Send audio message referencing the URL
 
-Auto-deletes audio files after upload (prevents disk fill).
+Auto-deletes audio files after sending.
 """
 
 import os
 import logging
 from dataclasses import dataclass
 
-import httpx
+from twilio.rest import Client
+from twilio.request_validator import RequestValidator
 
 from app.config import get_settings
-from app.utils import mask_phone
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
-
-META_API_BASE = f"https://graph.facebook.com/v21.0/{settings.whatsapp_phone_number_id}"
 
 
 @dataclass
 class IncomingMessage:
     """Parsed incoming WhatsApp message."""
-    message_id: str        # Unique message ID from Meta (for dedup)
-    phone: str             # Sender's phone number (e.g., "917679144006")
+    message_id: str        # Unique message ID from Twilio
+    phone: str             # Sender's phone number (e.g., "whatsapp:+917679144006")
     text: str              # Message body text
     sender_name: str       # WhatsApp profile name (may be empty)
-    timestamp: str         # Unix timestamp string
+    timestamp: str         # Timestamp string
+
+
+def get_twilio_client() -> Client:
+    """Get authenticated Twilio client."""
+    return Client(settings.twilio_account_sid, settings.twilio_auth_token)
 
 
 def extract_message(webhook_data: dict) -> IncomingMessage | None:
     """
-    Extract message details from a Meta webhook payload.
-    Returns None if the payload doesn't contain a text message
-    (e.g., status updates, read receipts, media messages).
+    Extract message details from a Twilio webhook payload.
+    Twilio sends form data, FastAPI parses it as a dict.
+    Returns None if the payload doesn't contain a text message.
     """
     try:
-        entry = webhook_data.get("entry", [])
-        if not entry:
+        message_sid = webhook_data.get("MessageSid", "")
+        phone = webhook_data.get("From", "")
+        text = webhook_data.get("Body", "").strip()
+        sender_name = webhook_data.get("ProfileName", "")
+        timestamp = webhook_data.get("Timestamp", "")
+        num_media = int(webhook_data.get("NumMedia", 0))
+
+        # Skip media messages
+        if num_media > 0:
+            logger.info("Media message received, skipping")
             return None
 
-        changes = entry[0].get("changes", [])
-        if not changes:
+        if not phone or not text:
             return None
-
-        value = changes[0].get("value", {})
-        messages = value.get("messages", [])
-        if not messages:
-            return None
-
-        msg = messages[0]
-
-        # Only handle text messages
-        if msg.get("type") != "text":
-            logger.info(f"Non-text message type: {msg.get('type')}, skipping")
-            return None
-
-        # Extract sender info
-        contacts = value.get("contacts", [{}])
-        sender_name = ""
-        if contacts:
-            sender_name = contacts[0].get("profile", {}).get("name", "")
 
         return IncomingMessage(
-            message_id=msg.get("id", ""),
-            phone=msg.get("from", ""),
-            text=msg.get("text", {}).get("body", ""),
+            message_id=message_sid,
+            phone=phone,
+            text=text,
             sender_name=sender_name,
-            timestamp=msg.get("timestamp", ""),
+            timestamp=timestamp,
         )
 
-    except (KeyError, IndexError, TypeError) as e:
-        logger.warning(f"Failed to parse webhook payload: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to parse Twilio webhook payload: {e}")
         return None
 
 
 async def send_text_message(phone: str, text: str) -> bool:
     """
-    Send a plain text message to a WhatsApp number.
+    Send a plain text message to a WhatsApp number via Twilio.
     Used as fallback when voice note generation fails.
 
     Returns True on success, False on failure.
     """
-    if not settings.whatsapp_access_token:
-        logger.warning("WhatsApp access token not configured, skipping send")
+    if not settings.twilio_account_sid:
+        logger.warning("Twilio credentials not configured, skipping send")
         return False
 
-    url = f"{META_API_BASE}/messages"
-    headers = {
-        "Authorization": f"Bearer {settings.whatsapp_access_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "text",
-        "text": {"body": text},
-    }
-
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-            logger.info(f"Text message sent to {mask_phone(phone)}")
-            return True
-    except httpx.HTTPStatusError as e:
-        logger.error(f"WhatsApp text send failed ({e.response.status_code}): {e.response.text}")
+        client = get_twilio_client()
+        message = client.messages.create(
+            from_=settings.twilio_whatsapp_number,
+            to=phone,
+            body=text,
+        )
+        logger.info(f"Text message sent to {phone[-4:]} (SID: {message.sid})")
+        return True
     except Exception as e:
-        logger.error(f"WhatsApp text send error: {e}")
-
-    return False
-
-
-async def _upload_media(audio_path: str) -> str | None:
-    """
-    Upload an audio file to Meta's media server.
-    Returns the media_id on success, None on failure.
-    """
-    url = f"{META_API_BASE}/media"
-    headers = {
-        "Authorization": f"Bearer {settings.whatsapp_access_token}",
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            with open(audio_path, "rb") as f:
-                files = {
-                    "file": (os.path.basename(audio_path), f, "audio/ogg"),
-                }
-                data = {
-                    "messaging_product": "whatsapp",
-                    "type": "audio/ogg",
-                }
-                response = await client.post(url, headers=headers, files=files, data=data)
-                response.raise_for_status()
-
-        media_id = response.json().get("id")
-        logger.info(f"Media uploaded: {media_id}")
-        return media_id
-
-    except Exception as e:
-        logger.error(f"Media upload failed: {e}")
-        return None
+        logger.error(f"Twilio text send error: {e}")
+        return False
 
 
 async def send_voice_note(phone: str, audio_path: str) -> bool:
     """
-    Upload audio file and send as WhatsApp voice note.
-    Auto-deletes the audio file after upload (success or failure).
+    Send a voice note to a WhatsApp number via Twilio.
+    Twilio requires a publicly accessible URL for media.
+    For hackathon: we send text fallback with the alert message.
 
     Returns True on success, False on failure.
     """
-    if not settings.whatsapp_access_token:
-        logger.warning("WhatsApp access token not configured, skipping send")
+    if not settings.twilio_account_sid:
+        logger.warning("Twilio credentials not configured, skipping send")
         _cleanup_file(audio_path)
         return False
 
     try:
-        # Step 1: Upload audio to Meta
-        media_id = await _upload_media(audio_path)
-        if not media_id:
+        # For hackathon demo: read the audio file exists confirmation
+        # then send as text (Twilio sandbox has media URL restrictions)
+        # In production: upload to S3/Cloudinary and send media URL
+        file_exists = os.path.exists(audio_path)
+        file_size = os.path.getsize(audio_path) if file_exists else 0
+        logger.info(f"Voice note ready: {audio_path} ({file_size/1024:.1f} KB)")
+
+        # Check if we have a public URL configured for media hosting
+        media_url = os.environ.get("MEDIA_BASE_URL", "")
+
+        if media_url:
+            # Production path: send actual voice note
+            client = get_twilio_client()
+            filename = os.path.basename(audio_path)
+            full_media_url = f"{media_url}/{filename}"
+            message = client.messages.create(
+                from_=settings.twilio_whatsapp_number,
+                to=phone,
+                media_url=[full_media_url],
+            )
+            logger.info(f"Voice note sent to {phone[-4:]} (SID: {message.sid})")
+        else:
+            # Sandbox path: voice notes need public URLs which sandbox restricts
+            # Send text message instead — still delivers the alert
+            logger.info("No MEDIA_BASE_URL set, sending text fallback")
             _cleanup_file(audio_path)
             return False
 
-        # Step 2: Send audio message
-        url = f"{META_API_BASE}/messages"
-        headers = {
-            "Authorization": f"Bearer {settings.whatsapp_access_token}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "messaging_product": "whatsapp",
-            "to": phone,
-            "type": "audio",
-            "audio": {"id": media_id},
-        }
-
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(url, json=payload, headers=headers)
-            response.raise_for_status()
-
-        logger.info(f"Voice note sent to {mask_phone(phone)}")
-
-        # Step 3: Clean up local file
         _cleanup_file(audio_path)
         return True
 
-    except httpx.HTTPStatusError as e:
-        logger.error(f"WhatsApp voice send failed ({e.response.status_code}): {e.response.text}")
     except Exception as e:
-        logger.error(f"WhatsApp voice send error: {e}")
-
-    # Always clean up, even on failure
-    _cleanup_file(audio_path)
-    return False
+        logger.error(f"Twilio voice send error: {e}")
+        _cleanup_file(audio_path)
+        return False
 
 
 def _cleanup_file(path: str) -> None:

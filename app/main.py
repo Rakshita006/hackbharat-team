@@ -86,8 +86,8 @@ async def lifespan(app: FastAPI):
         logger.warning("⚠️  No demo cache loaded — GEE will be called for every request")
 
     # 5. Check WhatsApp API configs
-    if settings.whatsapp_access_token:
-        logger.info("✅ WhatsApp access token configured")
+    if settings.twilio_account_sid:
+        logger.info("✅ Twilio WhatsApp configured")
     else:
         logger.warning("⚠️  WhatsApp not configured — messages won't be sent")
 
@@ -138,7 +138,7 @@ async def health():
         "checks": {
             "gee_connected": gee_is_connected(),
             "ffmpeg_available": ffmpeg_ok,
-            "whatsapp_configured": bool(settings.whatsapp_access_token),
+            "whatsapp_configured": bool(settings.twilio_account_sid),
         },
         "version": "2.0.0",
     }

@@ -78,8 +78,7 @@ def init_gee() -> bool:
             ee.Initialize(credentials, project=settings.gee_project_id)
             logger.info("GEE initialized with service account")
         else:
-            # Development: try interactive auth (requires browser)
-            ee.Authenticate()
+            # Development: use already authenticated credentials
             ee.Initialize(project=settings.gee_project_id)
             logger.info("GEE initialized with interactive auth")
 
